@@ -8,7 +8,7 @@ blueprints documented
 The pipelines are executed daily, with each pipeline parameterized to
 run in multiple jobs (e.g., the `${AgentLabel}` parameter selects the
 Ubuntu release being tested). Outcomes can be viewed on Aether's
-[Jenkins server](https://jenkins.aetherproject.org/view/OnRamp_Blueprints/)).
+[Jenkins server](https://jenkins.aetherproject.org/view/OnRamp_Blueprints/).
 
 
 
