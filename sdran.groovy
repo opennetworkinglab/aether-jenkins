@@ -62,10 +62,10 @@ EOF
             {
                 sh """
                   cd  $WORKSPACE
-                  kubectl exec -it deployment/onos-cli -n sdran -- onos kpimon list metrics --no-headers > ransim.log
-                  kubectl exec -it deployment/onos-cli -n sdran -- onos ransim get ueCount >> ransim.log
-                  kubectl exec -it deployment/onos-cli -n sdran -- onos ransim get cells --no-headers >> ransim.log
-                  kubectl exec -it deployment/onos-cli -n sdran -- onos topo get entity e2cell >> ransim.log
+                  kubectl exec -i deployment/onos-cli -n sdran -- onos kpimon list metrics --no-headers > ransim.log
+                  kubectl exec -i deployment/onos-cli -n sdran -- onos ransim get ueCount >> ransim.log
+                  kubectl exec -i deployment/onos-cli -n sdran -- onos ransim get cells --no-headers >> ransim.log
+                  kubectl exec -i deployment/onos-cli -n sdran -- onos topo get entity e2cell >> ransim.log
                   cat ransim.log
                 """
             }    
