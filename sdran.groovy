@@ -61,6 +61,7 @@ EOF
             catchError(message:'RANSIM Validation fails', buildResult:'FAILURE', stageResult:'FAILURE')
             {
                 sh """
+                  cd  $WORKSPACE
                   kubectl exec -it deployment/onos-cli -n sdran -- onos kpimon list metrics --no-headers > ransim.log
                   kubectl exec -it deployment/onos-cli -n sdran -- onos ransim get ueCount >> ransim.log
                   kubectl exec -it deployment/onos-cli -n sdran -- onos ransim get cells --no-headers >> ransim.log
@@ -76,7 +77,7 @@ EOF
             sh '''
               cd  $WORKSPACE
               mkdir logs
-              cp aether-onramp/ransim.log logs
+              cp ransim.log logs
               AMF_POD_NAME=\$(kubectl get pods -n omec | grep amf | awk 'NR==1{print \$1}') 
               echo "${AMF_POD_NAME}"
               kubectl logs $AMF_POD_NAME -n omec > logs/sdran_2204_default_amf.log
