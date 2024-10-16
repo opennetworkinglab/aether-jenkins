@@ -82,7 +82,6 @@ EOF
               sudo cp  vars/main-gnbsim.yml  vars/main.yml
               grep -rl "ens18" . | xargs sed -i "s/ens18/\$MYIFC/g"
               sudo sed -i "s/10.76.28.113/\$MYIP/" vars/main.yml
-              cat deps/gnbsim/vars/main.yml
               make aether-pingall
               sleep 240
             """ 
@@ -98,7 +97,6 @@ EOF
             make aether-5gc-install
             make aether-gnbsim-install
             kubectl get pods -n omec
-            docker ps
           """ 
         }
     }
