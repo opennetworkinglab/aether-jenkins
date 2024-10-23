@@ -121,8 +121,7 @@ EOF
               credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
               sh """
                 cd $WORKSPACE
-                NODE2_IP = \$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
-                echo \$NODE2_IP
+                NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
                 # substitute some observable action, such as iperf
                 cd /home/ubuntu
                 ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
