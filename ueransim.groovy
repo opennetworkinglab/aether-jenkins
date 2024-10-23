@@ -78,6 +78,8 @@ node1
 node2
 EOF
               cat hosts.ini
+              NODE2_IP = \$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
+              echo "NODE2_IP is " \$NODE2_IP
               sudo cp  vars/main-ueransim.yml  vars/main.yml
               grep -rl "ens18" . | xargs sed -i "s/ens18/\$MYIFC/g"
               sudo sed -i "s/10.76.28.113/\$MYIP/" vars/main.yml
@@ -102,24 +104,12 @@ EOF
     
     stage("Run UERANSIM"){
         steps {
-          withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
-            credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
             sh """
-              NEWIP=\$(aws --region us-west-2 ec2 describe-instances \
-                       --instance-ids i-000f1f7e33fe5a86e \
-                       --query 'Reservations[0].Instances[0].PrivateIpAddress')
-              echo \$NEWIP
-              WORKERIP=\$(echo \$NEWIP | tr -d '"')
-              echo \$WORKERIP
               cd $WORKSPACE/aether-onramp
               sleep 120
               make aether-ueransim-run
               sleep 20
-              cd /home/ubuntu
-              ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$WORKERIP \
-                 "ifconfig | grep "uesimtun""
             """
-          }
         }
     }
             
@@ -130,17 +120,13 @@ EOF
             withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
               credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
               sh """
-                NEWIP=\$(aws --region us-west-2 ec2 describe-instances \
-                             --instance-ids i-000f1f7e33fe5a86e \
-                             --query 'Reservations[0].Instances[0].PrivateIpAddress')
-                echo \$NEWIP
-                WORKERIP=\$(echo \$NEWIP | tr -d '"')
-                echo \$WORKERIP
+                cd $WORKSPACE
+                NODE2_IP = \$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
+                echo \$NODE2_IP
+                # substitute some observable action, such as iperf
                 cd /home/ubuntu
-                ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$WORKERIP \
-                   "ping -c 5 -I uesimtun 8.8.8.8" > $WORKSPACE/ueransim.log
-                cat $WORKSPACE/ueransim.log
-                grep "0.0% packet loss" $WORKSPACE/ueransim.log
+                ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+		   "ip a | grep -A 1 'uesimtun0' | grep inet | awk '{print \$2}' | cut -d'/' -f1"
               """
             }
           }
@@ -152,7 +138,6 @@ EOF
             sh '''
               cd  $WORKSPACE
               mkdir logs
-              cp ueransim.log logs
               AMF_POD_NAME=\$(kubectl get pods -n omec | grep amf | awk 'NR==1{print \$1}') 
               echo "${AMF_POD_NAME}"
               kubectl logs $AMF_POD_NAME -n omec > logs/sdran_2204_default_amf.log
