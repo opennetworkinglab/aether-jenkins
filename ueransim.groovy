@@ -115,7 +115,7 @@ EOF
             
     stage("Validate Results"){
         steps {
-          catchError(message:'Gnbsim Validation is failed', buildResult:'FAILURE',
+          catchError(message:'UERANSIM Validation has failed', buildResult:'FAILURE',
             stageResult:'FAILURE') {
             withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
               credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
