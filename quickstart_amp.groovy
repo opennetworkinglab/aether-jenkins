@@ -52,6 +52,8 @@ EOF
             make aether-amp-install
             make aether-5gc-install
             make aether-gnbsim-install
+            kubectl get pods -n omec
+            docker ps
           """ 
         }
     }
@@ -62,8 +64,6 @@ EOF
                  sh """
                    cd $WORKSPACE/aether-onramp
                    sleep 60
-                   kubectl get pods -n omec 
-                   docker ps
                    make aether-gnbsim-run
                    docker exec gnbsim-1 cat summary.log
                  """
@@ -85,38 +85,35 @@ EOF
     stage ('Retrieve Logs'){
         steps {
             sh '''
-              cd  $WORKSPACE/
-              mkdir logs
-              kubectl get pods -n omec
+              mkdir $WORKSPACE/logs
+              cd $WORKSPACE/logs
               logfile=\$(docker exec gnbsim-1 ls | grep "gnbsim1-.*.log")
               echo "${logfile}"
-              docker cp gnbsim-1:/gnbsim/bin/${logfile} logs/${logfile}
-              #cat logs/${logfile}
+              docker cp gnbsim-1:/gnbsim/bin/${logfile} ${logfile}
               AMF_POD_NAME=\$(kubectl get pods -n omec | grep amf | awk 'NR==1{print \$1}') 
               echo "${AMF_POD_NAME}"
-              kubectl logs $AMF_POD_NAME -n omec > logs/quickstart_2204_default_amf.log
+              kubectl logs $AMF_POD_NAME -n omec > quickstart_amp_amf.log
               WEBUI_POD_NAME=\$(kubectl get pods -n omec | grep webui | awk 'NR==1{print \$1}') 
               echo "${WEBUI_POD_NAME}"
-              kubectl logs $WEBUI_POD_NAME -n omec > logs/quickstart_2204_default_webui.log
+              kubectl logs $WEBUI_POD_NAME -n omec > quickstart_amp_webui.log
               UDR_POD_NAME=\$(kubectl get pods -n omec | grep udr | awk 'NR==1{print \$1}') 
               echo "${UDR_POD_NAME}"
-              kubectl logs $UDR_POD_NAME -n omec > logs/quickstart_2204_default_udr.log
+              kubectl logs $UDR_POD_NAME -n omec > quickstart_amp_udr.log
               UDM_POD_NAME=\$(kubectl get pods -n omec | grep udm | awk 'NR==1{print \$1}') 
               echo "${UDM_POD_NAME}"
-              kubectl logs $UDM_POD_NAME -n omec > logs/quickstart_2204_default_udm.log
+              kubectl logs $UDM_POD_NAME -n omec > quickstart_amp_udm.log
               AUSF_POD_NAME=\$(kubectl get pods -n omec | grep ausf | awk 'NR==1{print \$1}') 
               echo "${AUSF_POD_NAME}"
-              kubectl logs $AUSF_POD_NAME -n omec > logs/quickstart_2204_default_ausf.log
+              kubectl logs $AUSF_POD_NAME -n omec > quickstart_amp_ausf.log
               SMF_POD_NAME=\$(kubectl get pods -n omec | grep smf | awk 'NR==1{print \$1}') 
               echo "${SMF_POD_NAME}"
-              kubectl logs $SMF_POD_NAME -n omec > logs/quickstart_2204_default_smf.log
+              kubectl logs $SMF_POD_NAME -n omec > quickstart_amp_smf.log
             '''
         }
     }
 
     stage("Archive Artifacts"){
         steps {
-            // Archive Pod Logs
             archiveArtifacts allowEmptyArchive: true, artifacts: "**/logs/*.log", followSymlinks: false
         }
     }
