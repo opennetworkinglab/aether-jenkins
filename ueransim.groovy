@@ -117,8 +117,6 @@ EOF
         steps {
           catchError(message:'UERANSIM Validation has failed', buildResult:'FAILURE',
             stageResult:'FAILURE') {
-            withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-              credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
               sh """
                 cd $WORKSPACE/aether-onramp
                 NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
@@ -127,7 +125,6 @@ EOF
                 ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
 		   "ip a | grep -A 1 'uesimtun0' | grep inet | awk '{print \$2}' | cut -d'/' -f1"
               """
-            }
           }
         }
     }
@@ -135,33 +132,32 @@ EOF
     stage("Retrieve Logs"){
         steps {
             sh '''
-              cd  $WORKSPACE
-              mkdir logs
+              mkdir $WORKSPACE/logs
+              cd $WORKSPACE/logs 
               AMF_POD_NAME=\$(kubectl get pods -n omec | grep amf | awk 'NR==1{print \$1}') 
               echo "${AMF_POD_NAME}"
-              kubectl logs $AMF_POD_NAME -n omec > logs/sdran_2204_default_amf.log
+              kubectl logs $AMF_POD_NAME -n omec > ueransim_amf.log
               WEBUI_POD_NAME=\$(kubectl get pods -n omec | grep webui | awk 'NR==1{print \$1}') 
               echo "${WEBUI_POD_NAME}"
-              kubectl logs $WEBUI_POD_NAME -n omec > logs/sdran_2204_default_webui.log
+              kubectl logs $WEBUI_POD_NAME -n omec > ueransim_webui.log
               UDR_POD_NAME=\$(kubectl get pods -n omec | grep udr | awk 'NR==1{print \$1}') 
               echo "${UDR_POD_NAME}"
-              kubectl logs $UDR_POD_NAME -n omec > logs/sdran_2204_default_udr.log
+              kubectl logs $UDR_POD_NAME -n omec > ueransim_udr.log
               UDM_POD_NAME=\$(kubectl get pods -n omec | grep udm | awk 'NR==1{print \$1}') 
               echo "${UDM_POD_NAME}"
-              kubectl logs $UDM_POD_NAME -n omec > logs/sdran_2204_default_udm.log
+              kubectl logs $UDM_POD_NAME -n omec > ueransim_udm.log
               AUSF_POD_NAME=\$(kubectl get pods -n omec | grep ausf | awk 'NR==1{print \$1}') 
               echo "${AUSF_POD_NAME}"
-              kubectl logs $AUSF_POD_NAME -n omec > logs/sdran_2204_default_ausf.log
+              kubectl logs $AUSF_POD_NAME -n omec > ueransim_ausf.log
               SMF_POD_NAME=\$(kubectl get pods -n omec | grep smf | awk 'NR==1{print \$1}') 
               echo "${SMF_POD_NAME}"
-              kubectl logs $SMF_POD_NAME -n omec > logs/sdran_2204_default_smf.log
+              kubectl logs $SMF_POD_NAME -n omec > uernansim_smf.log
             '''
         }
     }
 
     stage("Archive Artifacts"){
         steps {
-            // Archive Pod Logs
             archiveArtifacts allowEmptyArchive: true, artifacts: "**/logs/*.log", followSymlinks: false
         }
     }

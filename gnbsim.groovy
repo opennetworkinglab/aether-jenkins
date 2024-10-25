@@ -77,8 +77,9 @@ node1
 [gnbsim_nodes]
 node2
 EOF
-              #sudo cp -r /home/ubuntu/host.ini hosts.ini
               cat hosts.ini
+              NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
+              echo "NODE2_IP is " \$NODE2_IP
               sudo cp  vars/main-gnbsim.yml  vars/main.yml
               grep -rl "ens18" . | xargs sed -i "s/ens18/\$MYIFC/g"
               sudo sed -i "s/10.76.28.113/\$MYIP/" vars/main.yml
@@ -103,27 +104,16 @@ EOF
     
     stage("Run gNBsim"){
         steps {
-          withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
-            credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
             sh """
-              NEWIP=\$(aws --region us-west-2 ec2 describe-instances \
-                       --instance-ids i-000f1f7e33fe5a86e \
-                       --query 'Reservations[0].Instances[0].PrivateIpAddress')
-              echo \$NEWIP
-              WORKERIP=\$(echo \$NEWIP | tr -d '"')
-              echo \$WORKERIP
               cd $WORKSPACE/aether-onramp
-              sleep 120
+              NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
+              sleep 60
+              kubectl get pods -n omec
               make aether-gnbsim-run
               cd /home/ubuntu
-              ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$WORKERIP \
+              ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
                  "docker exec  gnbsim-1 cat summary.log"
-              ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$WORKERIP \
-                 "ip route get 8.8.8.8"
-              ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$WORKERIP \
-                 "docker exec  gnbsim-1 ip route get 8.8.8.8"
             """
-          }
         }
     }
     
@@ -131,87 +121,56 @@ EOF
         steps {
           catchError(message:'Gnbsim Validation is failed', buildResult:'FAILURE',
             stageResult:'FAILURE') {
-            withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-              credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
               sh """
-                NEWIP=\$(aws --region us-west-2 ec2 describe-instances \
-                             --instance-ids i-000f1f7e33fe5a86e \
-                             --query 'Reservations[0].Instances[0].PrivateIpAddress')
-                echo \$NEWIP
-                WORKERIP=\$(echo \$NEWIP | tr -d '"')
-                echo \$WORKERIP
+                cd $WORKSPACE/aether-onramp
+                NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
                 cd /home/ubuntu
-                LOGFILE=\$(ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$WORKERIP \
-                    "docker exec  gnbsim-1 ls " | grep "gnbsim1-.*.log")  || true
-                echo \$LOGFILE 
-                ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$WORKERIP \
-                    "mkdir -p /tmp/logs/gnbsim"
-                ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$WORKERIP \
-                    "docker cp gnbsim-1:/gnbsim/bin/\$LOGFILE  /tmp/logs/gnbsim/\$LOGFILE"
-                echo "Contents of gnbsim LOG:"
-                ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$WORKERIP \
-                    "cat /tmp/logs/gnbsim/\$LOGFILE"
-                ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$WORKERIP \
-                    "docker exec gnbsim-1 cat \$LOGFILE" | grep "Profile Status: PASS"
+                ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+                    "docker exec gnbsim-1 cat summary.log" | grep "Profile Status: PASS"
               """
-            }
           }
         }
     }
     
-    stage("Retrieve Logs"){
+    stage("Retrieve Logs") {
         steps {
-          catchError(message:'Collect GNBSIM-LOGS Validation failed', buildResult:'FAILURE', 
-            stageResult:'FAILURE') {
-            withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
-              credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
-              sh """
-                NEWIP=\$(aws --region us-west-2 ec2 describe-instances \
-                             --instance-ids i-000f1f7e33fe5a86e \
-                             --query 'Reservations[0].Instances[0].PrivateIpAddress')
-                echo \$NEWIP
-                WORKERIP=\$(echo \$NEWIP | tr -d '"')
-                echo \$WORKERIP
-                cd /home/ubuntu
-                kubectl get pods -n omec
-                LOGFILE=\$(ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$WORKERIP \
-                       "docker exec  gnbsim-1 ls " | grep "gnbsim1-.*.log")  || true
-                echo \$LOGFILE 
-                ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$WORKERIP \
-                       "mkdir -p /tmp/logs/gnbsim"
-                ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$WORKERIP \
-                       "docker cp gnbsim-1:/gnbsim/bin/\$LOGFILE  /tmp/logs/gnbsim/\$LOGFILE"
-                ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$WORKERIP \
-                       "cat /tmp/logs/gnbsim/\$LOGFILE"
-                cd  $WORKSPACE/
-                mkdir logs
-                AMF_POD_NAME=\$(kubectl get pods -n omec | grep amf | awk 'NR==1{print \$1}') 
-                echo \$AMF_POD_NAME
-                kubectl logs \$AMF_POD_NAME -n omec > logs/2server_2204_default_amf.log
-                WEBUI_POD_NAME=\$(kubectl get pods -n omec | grep webui | awk 'NR==1{print \$1}') 
-                echo \$WEBUI_POD_NAME
-                kubectl logs \$WEBUI_POD_NAME -n omec > logs/2server_2204_default_webui.log
-                UDR_POD_NAME=\$(kubectl get pods -n omec | grep udr | awk 'NR==1{print \$1}') 
-                echo \$UDR_POD_NAME
-                kubectl logs \$UDR_POD_NAME -n omec > logs/2server_2204_default_udr.log
-                UDM_POD_NAME=\$(kubectl get pods -n omec | grep udm | awk 'NR==1{print \$1}') 
-                echo \$UDM_POD_NAME
-                kubectl logs \$UDM_POD_NAME -n omec > logs/2server_2204_default_udm.log
-                AUSF_POD_NAME=\$(kubectl get pods -n omec | grep ausf | awk 'NR==1{print \$1}') 
-                echo \$AUSF_POD_NAME
-                kubectl logs \$AUSF_POD_NAME -n omec > logs/2server_2204_default_ausf.log
-                SMF_POD_NAME=\$(kubectl get pods -n omec | grep smf | awk 'NR==1{print \$1}') 
-                echo \$SMF_POD_NAME
-                kubectl logs \$SMF_POD_NAME -n omec > logs/2server_2204_default_smf.log
-              """
-            }
-          }
+            sh """
+              mkdir $WORKSPACE/logs
+              cd $WORKSPACE/aether-onramp
+              NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
+              cd /home/ubuntu
+              LOGFILE=\$(ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+                     "docker exec  gnbsim-1 ls " | grep "gnbsim1-.*.log")  || true
+              echo \$LOGFILE
+              ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+                     "docker cp gnbsim-1:/gnbsim/bin/\$LOGFILE  /home/ubuntu/\$LOGFILE"
+              scp -i "aether-qa.pem" -o StrictHostKeyChecking=no \
+                     ubuntu@\$NODE2_IP:\$LOGFILE $WORKSPACE/logs
+              cd $WORKSPACE/logs
+              AMF_POD_NAME=\$(kubectl get pods -n omec | grep amf | awk 'NR==1{print \$1}')
+              echo \$AMF_POD_NAME
+              kubectl logs \$AMF_POD_NAME -n omec > gnbsim_amf.log
+              WEBUI_POD_NAME=\$(kubectl get pods -n omec | grep webui | awk 'NR==1{print \$1}')
+              echo \$WEBUI_POD_NAME
+              kubectl logs \$WEBUI_POD_NAME -n omec > gnbsim_webui.log
+              UDR_POD_NAME=\$(kubectl get pods -n omec | grep udr | awk 'NR==1{print \$1}')
+              echo \$UDR_POD_NAME
+              kubectl logs \$UDR_POD_NAME -n omec > gnbsim_udr.log
+              UDM_POD_NAME=\$(kubectl get pods -n omec | grep udm | awk 'NR==1{print \$1}')
+              echo \$UDM_POD_NAME
+              kubectl logs \$UDM_POD_NAME -n omec > gnbsim_udm.log
+              AUSF_POD_NAME=\$(kubectl get pods -n omec | grep ausf | awk 'NR==1{print \$1}')
+              echo \$AUSF_POD_NAME
+              kubectl logs \$AUSF_POD_NAME -n omec > gnbsim_ausf.log
+              SMF_POD_NAME=\$(kubectl get pods -n omec | grep smf | awk 'NR==1{print \$1}')
+              echo \$SMF_POD_NAME
+              kubectl logs \$SMF_POD_NAME -n omec > gnbsim_smf.log
+            """
         }
     }
 
     stage("Archive Artifacts"){
         steps {
-            // Archive Pod Logs
             archiveArtifacts allowEmptyArchive: true, artifacts: "**/logs/*.log", followSymlinks: false
         }
     }
