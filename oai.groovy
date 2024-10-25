@@ -50,6 +50,7 @@ EOF
             make k8s-install
             make 5gc-install
             make oai-gnb-install
+            kubectl get pods -n omec
           """ 
         }
     }
@@ -60,7 +61,6 @@ EOF
                  sh """
                    cd $WORKSPACE/aether-onramp
                    sleep 60
-                   kubectl get pods -n omec 
                    make oai-uesim-start
                    docker ps
                  """
@@ -84,34 +84,34 @@ EOF
     stage ('Retrieve Logs'){
         steps {
             sh '''
-              cd  $WORKSPACE/
+              cd $WORKSPACE
               mkdir logs
-	      cp UEsim.log logs
+              cp UEsim.log logs
+              cd logs
               AMF_POD_NAME=\$(kubectl get pods -n omec | grep amf | awk 'NR==1{print \$1}') 
               echo "${AMF_POD_NAME}"
-              kubectl logs $AMF_POD_NAME -n omec > logs/oai_2204_default_amf.log
+              kubectl logs $AMF_POD_NAME -n omec > oai_amf.log
               WEBUI_POD_NAME=\$(kubectl get pods -n omec | grep webui | awk 'NR==1{print \$1}') 
               echo "${WEBUI_POD_NAME}"
-              kubectl logs $WEBUI_POD_NAME -n omec > logs/oai_2204_default_webui.log
+              kubectl logs $WEBUI_POD_NAME -n omec > oai_webui.log
               UDR_POD_NAME=\$(kubectl get pods -n omec | grep udr | awk 'NR==1{print \$1}') 
               echo "${UDR_POD_NAME}"
-              kubectl logs $UDR_POD_NAME -n omec > logs/oai_2204_default_udr.log
+              kubectl logs $UDR_POD_NAME -n omec > oai_udr.log
               UDM_POD_NAME=\$(kubectl get pods -n omec | grep udm | awk 'NR==1{print \$1}') 
               echo "${UDM_POD_NAME}"
-              kubectl logs $UDM_POD_NAME -n omec > logs/oai_2204_default_udm.log
+              kubectl logs $UDM_POD_NAME -n omec > oai_udm.log
               AUSF_POD_NAME=\$(kubectl get pods -n omec | grep ausf | awk 'NR==1{print \$1}') 
               echo "${AUSF_POD_NAME}"
-              kubectl logs $AUSF_POD_NAME -n omec > logs/oai_2204_default_ausf.log
+              kubectl logs $AUSF_POD_NAME -n omec > oai_ausf.log
               SMF_POD_NAME=\$(kubectl get pods -n omec | grep smf | awk 'NR==1{print \$1}') 
               echo "${SMF_POD_NAME}"
-              kubectl logs $SMF_POD_NAME -n omec > logs/oai_2204_default_smf.log
+              kubectl logs $SMF_POD_NAME -n omec > oai_smf.log
             '''
         }
     }
 
     stage("Archive Artifacts"){
         steps {
-            // Archive Pod Logs
             archiveArtifacts allowEmptyArchive: true, artifacts: "**/logs/*.log", followSymlinks: false
         }
     }

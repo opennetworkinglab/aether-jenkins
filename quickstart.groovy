@@ -50,7 +50,7 @@ EOF
             make aether-k8s-install
             make aether-5gc-install
             make aether-gnbsim-install
-            kubectl get pods -n omec 
+            kubectl get pods -n omec
             docker ps
           """ 
         }
