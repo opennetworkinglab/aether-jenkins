@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
 
 pipeline {
-    options {
+  options {
       timeout(time: 1, unit: 'HOURS') 
-    }
+  }
 
   agent {
-        label 'Mumbai-Master-A2-22.04-with-AWS-setup'
-    }
+        label "${AgentLabel}"
+  }
     
   stages{
       
