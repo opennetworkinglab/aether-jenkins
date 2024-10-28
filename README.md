@@ -15,7 +15,7 @@ and `gnbsim.groovy` run in VMs that have the
 the second VM. All VMs have Ansible installed, as documented in the
 [OnRamp Guide](https://docs.aetherproject.org/master/onramp/start.html#prep-environment).
 Outcomes can be viewed on Aether's
-[Jenkins server](https://jenkins.aetherproject.org/view/OnRamp_Blueprints/).
+[Jenkins server](https://jenkins.aetherproject.org).
 
 
 
