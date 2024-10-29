@@ -80,11 +80,11 @@ EOF
               cat hosts.ini
               NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
               echo "NODE2_IP is " \$NODE2_IP
+              sleep 120
               sudo cp  vars/main-ueransim.yml  vars/main.yml
               grep -rl "ens18" . | xargs sed -i "s/ens18/\$MYIFC/g"
               sudo sed -i "s/10.76.28.113/\$MYIP/" vars/main.yml
               make aether-pingall
-              sleep 240
             """ 
           }
         }

@@ -80,6 +80,7 @@ EOF
               cat hosts.ini
               NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
               echo "NODE2_IP is " \$NODE2_IP
+              sleep 120
               sudo cp  vars/main-gnbsim.yml  vars/main.yml
               grep -rl "ens18" . | xargs sed -i "s/ens18/\$MYIFC/g"
               sudo sed -i "s/10.76.28.113/\$MYIP/" vars/main.yml
@@ -113,6 +114,8 @@ EOF
               cd /home/ubuntu
               ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
                  "docker exec  gnbsim-1 cat summary.log"
+              ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+                 "docker exec  gnbsim-2 cat summary.log"
             """
         }
     }
@@ -127,6 +130,8 @@ EOF
                 cd /home/ubuntu
                 ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
                     "docker exec gnbsim-1 cat summary.log" | grep "Profile Status: PASS"
+                ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+                    "docker exec gnbsim-2 cat summary.log" | grep "Profile Status: PASS"
               """
           }
         }
@@ -144,6 +149,13 @@ EOF
               echo \$LOGFILE
               ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
                      "docker cp gnbsim-1:/gnbsim/bin/\$LOGFILE  /home/ubuntu/\$LOGFILE"
+              scp -i "aether-qa.pem" -o StrictHostKeyChecking=no \
+                     ubuntu@\$NODE2_IP:\$LOGFILE $WORKSPACE/logs
+              LOGFILE=\$(ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+                     "docker exec  gnbsim-2 ls " | grep "gnbsim2-.*.log")  || true
+              echo \$LOGFILE
+              ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+                     "docker cp gnbsim-2:/gnbsim/bin/\$LOGFILE  /home/ubuntu/\$LOGFILE"
               scp -i "aether-qa.pem" -o StrictHostKeyChecking=no \
                      ubuntu@\$NODE2_IP:\$LOGFILE $WORKSPACE/logs
               cd $WORKSPACE/logs
