@@ -84,7 +84,6 @@ EOF
               sudo cp vars/main-upf.yml vars/main.yml
               sudo sed -i "s/10.76.28.113/\$MYIP/" vars/main.yml
               sudo sed -i "s/ens18/\$MYIFC/g" vars/main.yml
-              sudo sed -i "s/standalone: true/standalone: false/" vars/main.yml
               make aether-pingall
             """ 
           }
