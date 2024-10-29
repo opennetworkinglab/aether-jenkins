@@ -106,9 +106,9 @@ EOF
         steps {
             sh """
               cd $WORKSPACE/aether-onramp
-              sleep 120
+              sleep 60
               make aether-ueransim-run
-              sleep 20
+              sleep 60
             """
         }
     }

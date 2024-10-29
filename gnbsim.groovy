@@ -85,7 +85,6 @@ EOF
               grep -rl "ens18" . | xargs sed -i "s/ens18/\$MYIFC/g"
               sudo sed -i "s/10.76.28.113/\$MYIP/" vars/main.yml
               make aether-pingall
-              sleep 240
             """ 
           }
         }
