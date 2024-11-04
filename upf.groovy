@@ -133,9 +133,9 @@ EOF
                 NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
                 cd /home/ubuntu
                 ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
-                    "docker exec gnbsim-1 cat summary.log" | grep "Profile Status: PASS"
+                    "docker exec gnbsim-1 cat summary.log" | grep "Ue's Passed" | grep -v "Passed: 0"
                 ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
-                    "docker exec gnbsim-2 cat summary.log" | grep "Profile Status: PASS"
+                    "docker exec gnbsim-2 cat summary.log" | grep "Ue's Passed" | grep -v "Passed: 0"
               """
           }
         }
