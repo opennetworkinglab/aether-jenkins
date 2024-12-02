@@ -152,14 +152,14 @@ EOF
                      "docker exec  gnbsim-1 ls " | grep "gnbsim1-.*.log")  || true
               echo \$LOGFILE
               ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
-                     "docker cp gnbsim-1:/gnbsim/bin/\$LOGFILE  /home/ubuntu/\$LOGFILE"
+                     "docker cp gnbsim-1:/gnbsim/\$LOGFILE  /home/ubuntu/\$LOGFILE"
               scp -i "aether-qa.pem" -o StrictHostKeyChecking=no \
                      ubuntu@\$NODE2_IP:\$LOGFILE $WORKSPACE/logs
               LOGFILE=\$(ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
                      "docker exec  gnbsim-2 ls " | grep "gnbsim2-.*.log")  || true
               echo \$LOGFILE
               ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
-                     "docker cp gnbsim-2:/gnbsim/bin/\$LOGFILE  /home/ubuntu/\$LOGFILE"
+                     "docker cp gnbsim-2:/gnbsim/\$LOGFILE  /home/ubuntu/\$LOGFILE"
               scp -i "aether-qa.pem" -o StrictHostKeyChecking=no \
                      ubuntu@\$NODE2_IP:\$LOGFILE $WORKSPACE/logs
               cd $WORKSPACE/logs

@@ -87,7 +87,7 @@ EOF
               cd $WORKSPACE/logs
               logfile=\$(docker exec gnbsim-1 ls | grep "gnbsim1-.*.log")
               echo "${logfile}"
-              docker cp gnbsim-1:/gnbsim/bin/${logfile} ${logfile}
+              docker cp gnbsim-1:/gnbsim/${logfile} ${logfile}
               AMF_POD_NAME=\$(kubectl get pods -n omec | grep amf | awk 'NR==1{print \$1}') 
               echo "${AMF_POD_NAME}"
               kubectl logs $AMF_POD_NAME -n omec > quickstart_amf.log
