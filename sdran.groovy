@@ -48,9 +48,9 @@ EOF
           sh """
             cd $WORKSPACE/aether-onramp
             make k8s-install
-            make 5gc-install
+            # make 5gc-install
             make sdran-install
-            kubectl get pods -n omec 
+            # kubectl get pods -n omec 
             kubectl get pods -n sdran
           """ 
         }
@@ -62,6 +62,8 @@ EOF
             {
                 sh """
                   cd $WORKSPACE
+		  echo "Waiting until kpimon result shows up before timeout timer expired (5 mins)"
+		  timeout 5m bash -c until [ $(kubectl exec -i deployment/onos-cli -n sdran -- onos kpimon list metrics | wc -l) -gt 3 ]; do sleep 10; done
                   kubectl exec -i deployment/onos-cli -n sdran -- onos kpimon list metrics --no-headers > ransim.log
                   kubectl exec -i deployment/onos-cli -n sdran -- onos ransim get ueCount >> ransim.log
                   kubectl exec -i deployment/onos-cli -n sdran -- onos ransim get cells --no-headers >> ransim.log
@@ -79,24 +81,24 @@ EOF
               mkdir logs
               cp ransim.log logs
               cd logs
-              AMF_POD_NAME=\$(kubectl get pods -n omec | grep amf | awk 'NR==1{print \$1}') 
-              echo "${AMF_POD_NAME}"
-              kubectl logs $AMF_POD_NAME -n omec > sdran_amf.log
-              WEBUI_POD_NAME=\$(kubectl get pods -n omec | grep webui | awk 'NR==1{print \$1}') 
-              echo "${WEBUI_POD_NAME}"
-              kubectl logs $WEBUI_POD_NAME -n omec > sdran_webui.log
-              UDR_POD_NAME=\$(kubectl get pods -n omec | grep udr | awk 'NR==1{print \$1}') 
-              echo "${UDR_POD_NAME}"
-              kubectl logs $UDR_POD_NAME -n omec > sdran_udr.log
-              UDM_POD_NAME=\$(kubectl get pods -n omec | grep udm | awk 'NR==1{print \$1}') 
-              echo "${UDM_POD_NAME}"
-              kubectl logs $UDM_POD_NAME -n omec > sdran_udm.log
-              AUSF_POD_NAME=\$(kubectl get pods -n omec | grep ausf | awk 'NR==1{print \$1}') 
-              echo "${AUSF_POD_NAME}"
-              kubectl logs $AUSF_POD_NAME -n omec > sdran_ausf.log
-              SMF_POD_NAME=\$(kubectl get pods -n omec | grep smf | awk 'NR==1{print \$1}') 
-              echo "${SMF_POD_NAME}"
-              kubectl logs $SMF_POD_NAME -n omec > sdran_smf.log
+              # AMF_POD_NAME=\$(kubectl get pods -n omec | grep amf | awk 'NR==1{print \$1}') 
+              # echo "${AMF_POD_NAME}"
+              # kubectl logs $AMF_POD_NAME -n omec > sdran_amf.log
+              # WEBUI_POD_NAME=\$(kubectl get pods -n omec | grep webui | awk 'NR==1{print \$1}') 
+              # echo "${WEBUI_POD_NAME}"
+              # kubectl logs $WEBUI_POD_NAME -n omec > sdran_webui.log
+              # UDR_POD_NAME=\$(kubectl get pods -n omec | grep udr | awk 'NR==1{print \$1}') 
+              # echo "${UDR_POD_NAME}"
+              # kubectl logs $UDR_POD_NAME -n omec > sdran_udr.log
+              # UDM_POD_NAME=\$(kubectl get pods -n omec | grep udm | awk 'NR==1{print \$1}') 
+              # echo "${UDM_POD_NAME}"
+              # kubectl logs $UDM_POD_NAME -n omec > sdran_udm.log
+              # AUSF_POD_NAME=\$(kubectl get pods -n omec | grep ausf | awk 'NR==1{print \$1}') 
+              # echo "${AUSF_POD_NAME}"
+              # kubectl logs $AUSF_POD_NAME -n omec > sdran_ausf.log
+              # SMF_POD_NAME=\$(kubectl get pods -n omec | grep smf | awk 'NR==1{print \$1}') 
+              # echo "${SMF_POD_NAME}"
+              # kubectl logs $SMF_POD_NAME -n omec > sdran_smf.log
             '''
         }
     }
@@ -114,7 +116,7 @@ EOF
       sh """
         cd $WORKSPACE/aether-onramp
         make sdran-uninstall
-        make 5gc-uninstall
+        # make 5gc-uninstall
         make k8s-uninstall
       """
     }
