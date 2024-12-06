@@ -50,7 +50,7 @@ EOF
             make aether-k8s-install
             make aether-5gc-install
             make aether-gnbsim-install
-            kubectl get pods -n omec
+            kubectl get pods -n aether-5gc
             docker ps
           """ 
         }
@@ -88,24 +88,24 @@ EOF
               logfile=\$(docker exec gnbsim-1 ls | grep "gnbsim1-.*.log")
               echo "${logfile}"
               docker cp gnbsim-1:/gnbsim/${logfile} ${logfile}
-              AMF_POD_NAME=\$(kubectl get pods -n omec | grep amf | awk 'NR==1{print \$1}') 
+              AMF_POD_NAME=\$(kubectl get pods -n aether-5gc | grep amf | awk 'NR==1{print \$1}')
               echo "${AMF_POD_NAME}"
-              kubectl logs $AMF_POD_NAME -n omec > quickstart_amf.log
-              WEBUI_POD_NAME=\$(kubectl get pods -n omec | grep webui | awk 'NR==1{print \$1}') 
+              kubectl logs $AMF_POD_NAME -n aether-5gc > quickstart_amf.log
+              WEBUI_POD_NAME=\$(kubectl get pods -n aether-5gc | grep webui | awk 'NR==1{print \$1}')
               echo "${WEBUI_POD_NAME}"
-              kubectl logs $WEBUI_POD_NAME -n omec > quickstart_webui.log
-              UDR_POD_NAME=\$(kubectl get pods -n omec | grep udr | awk 'NR==1{print \$1}') 
+              kubectl logs $WEBUI_POD_NAME -n aether-5gc > quickstart_webui.log
+              UDR_POD_NAME=\$(kubectl get pods -n aether-5gc | grep udr | awk 'NR==1{print \$1}')
               echo "${UDR_POD_NAME}"
-              kubectl logs $UDR_POD_NAME -n omec > quickstart_udr.log
-              UDM_POD_NAME=\$(kubectl get pods -n omec | grep udm | awk 'NR==1{print \$1}') 
+              kubectl logs $UDR_POD_NAME -n aether-5gc > quickstart_udr.log
+              UDM_POD_NAME=\$(kubectl get pods -n aether-5gc | grep udm | awk 'NR==1{print \$1}')
               echo "${UDM_POD_NAME}"
-              kubectl logs $UDM_POD_NAME -n omec > quickstart_udm.log
-              AUSF_POD_NAME=\$(kubectl get pods -n omec | grep ausf | awk 'NR==1{print \$1}') 
+              kubectl logs $UDM_POD_NAME -n aether-5gc > quickstart_udm.log
+              AUSF_POD_NAME=\$(kubectl get pods -n aether-5gc | grep ausf | awk 'NR==1{print \$1}')
               echo "${AUSF_POD_NAME}"
-              kubectl logs $AUSF_POD_NAME -n omec > quickstart_ausf.log
-              SMF_POD_NAME=\$(kubectl get pods -n omec | grep smf | awk 'NR==1{print \$1}') 
+              kubectl logs $AUSF_POD_NAME -n aether-5gc > quickstart_ausf.log
+              SMF_POD_NAME=\$(kubectl get pods -n aether-5gc | grep smf | awk 'NR==1{print \$1}')
               echo "${SMF_POD_NAME}"
-              kubectl logs $SMF_POD_NAME -n omec > quickstart_smf.log
+              kubectl logs $SMF_POD_NAME -n aether-5gc > quickstart_smf.log
             '''
         }
     }

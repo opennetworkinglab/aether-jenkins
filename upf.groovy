@@ -113,7 +113,7 @@ EOF
               cd $WORKSPACE/aether-onramp
               NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
               sleep 60
-              kubectl get pods -n omec
+              kubectl get pods -n aether-5gc
               make aether-gnbsim-run
               cd /home/ubuntu
               ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
@@ -163,24 +163,24 @@ EOF
               scp -i "aether-qa.pem" -o StrictHostKeyChecking=no \
                      ubuntu@\$NODE2_IP:\$LOGFILE $WORKSPACE/logs
               cd $WORKSPACE/logs
-              AMF_POD_NAME=\$(kubectl get pods -n omec | grep amf | awk 'NR==1{print \$1}')
+              AMF_POD_NAME=\$(kubectl get pods -n aether-5gc | grep amf | awk 'NR==1{print \$1}')
               echo \$AMF_POD_NAME
-              kubectl logs \$AMF_POD_NAME -n omec > gnbsim_amf.log
-              WEBUI_POD_NAME=\$(kubectl get pods -n omec | grep webui | awk 'NR==1{print \$1}')
+              kubectl logs \$AMF_POD_NAME -n aether-5gc > gnbsim_amf.log
+              WEBUI_POD_NAME=\$(kubectl get pods -n aether-5gc | grep webui | awk 'NR==1{print \$1}')
               echo \$WEBUI_POD_NAME
-              kubectl logs \$WEBUI_POD_NAME -n omec > gnbsim_webui.log
-              UDR_POD_NAME=\$(kubectl get pods -n omec | grep udr | awk 'NR==1{print \$1}')
+              kubectl logs \$WEBUI_POD_NAME -n aether-5gc > gnbsim_webui.log
+              UDR_POD_NAME=\$(kubectl get pods -n aether-5gc | grep udr | awk 'NR==1{print \$1}')
               echo \$UDR_POD_NAME
-              kubectl logs \$UDR_POD_NAME -n omec > gnbsim_udr.log
-              UDM_POD_NAME=\$(kubectl get pods -n omec | grep udm | awk 'NR==1{print \$1}')
+              kubectl logs \$UDR_POD_NAME -n aether-5gc > gnbsim_udr.log
+              UDM_POD_NAME=\$(kubectl get pods -n aether-5gc | grep udm | awk 'NR==1{print \$1}')
               echo \$UDM_POD_NAME
-              kubectl logs \$UDM_POD_NAME -n omec > gnbsim_udm.log
-              AUSF_POD_NAME=\$(kubectl get pods -n omec | grep ausf | awk 'NR==1{print \$1}')
+              kubectl logs \$UDM_POD_NAME -n aether-5gc > gnbsim_udm.log
+              AUSF_POD_NAME=\$(kubectl get pods -n aether-5gc | grep ausf | awk 'NR==1{print \$1}')
               echo \$AUSF_POD_NAME
-              kubectl logs \$AUSF_POD_NAME -n omec > gnbsim_ausf.log
-              SMF_POD_NAME=\$(kubectl get pods -n omec | grep smf | awk 'NR==1{print \$1}')
+              kubectl logs \$AUSF_POD_NAME -n aether-5gc > gnbsim_ausf.log
+              SMF_POD_NAME=\$(kubectl get pods -n aether-5gc | grep smf | awk 'NR==1{print \$1}')
               echo \$SMF_POD_NAME
-              kubectl logs \$SMF_POD_NAME -n omec > gnbsim_smf.log
+              kubectl logs \$SMF_POD_NAME -n aether-5gc > gnbsim_smf.log
             """
         }
     }
