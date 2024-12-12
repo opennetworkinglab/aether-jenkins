@@ -62,11 +62,8 @@ EOF
             {
               sh """
                 cd $WORKSPACE
-                echo "Wait until kpimon result is available (5 minute timeout)"
-                timeout 5m bash -c until \
-                  [ $(kubectl exec -i deployment/onos-cli -n sdran -- onos kpimon list metrics | wc -l) -gt 3 ];\
-                  do sleep 10;\
-                  done
+                echo "Give the simulator a chance to run (ideally, playbook should loop until done)"
+                sleep 60
                 kubectl exec -i deployment/onos-cli -n sdran -- onos kpimon list metrics --no-headers > ransim.log
                 kubectl exec -i deployment/onos-cli -n sdran -- onos ransim get ueCount >> ransim.log
                 kubectl exec -i deployment/onos-cli -n sdran -- onos ransim get cells --no-headers >> ransim.log
