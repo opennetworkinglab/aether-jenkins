@@ -60,14 +60,19 @@ EOF
         steps {
             catchError(message:'RANSIM Validation fails', buildResult:'FAILURE', stageResult:'FAILURE')
             {
-                sh """
-                  cd $WORKSPACE
-                  kubectl exec -i deployment/onos-cli -n sdran -- onos kpimon list metrics --no-headers > ransim.log
-                  kubectl exec -i deployment/onos-cli -n sdran -- onos ransim get ueCount >> ransim.log
-                  kubectl exec -i deployment/onos-cli -n sdran -- onos ransim get cells --no-headers >> ransim.log
-                  kubectl exec -i deployment/onos-cli -n sdran -- onos topo get entity e2cell >> ransim.log
-                  cat ransim.log
-                """
+              sh """
+                cd $WORKSPACE
+                echo "Wait until kpimon result is available (5 minute timeout)"
+                timeout 5m bash -c until \
+                  [ $(kubectl exec -i deployment/onos-cli -n sdran -- onos kpimon list metrics | wc -l) -gt 3 ];\
+                  do sleep 10;\
+                  done
+                kubectl exec -i deployment/onos-cli -n sdran -- onos kpimon list metrics --no-headers > ransim.log
+                kubectl exec -i deployment/onos-cli -n sdran -- onos ransim get ueCount >> ransim.log
+                kubectl exec -i deployment/onos-cli -n sdran -- onos ransim get cells --no-headers >> ransim.log
+                kubectl exec -i deployment/onos-cli -n sdran -- onos topo get entity e2cell >> ransim.log
+                cat ransim.log
+              """
             }    
         }
     }

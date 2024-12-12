@@ -99,7 +99,7 @@ EOF
             make aether-k8s-install
             make aether-5gc-install
             make srsran-gnb-install
-            kubectl get pods -n omec
+            kubectl get pods -n aether-5gc
           """ 
         }
     }
@@ -108,7 +108,7 @@ EOF
         steps {
             sh """
               cd $WORKSPACE/aether-onramp
-              kubectl get pods -n omec
+              kubectl get pods -n aether-5gc
               make srsran-uesim-start
             """
         }
@@ -142,24 +142,24 @@ EOF
               scp -i "aether-qa.pem" -o StrictHostKeyChecking=no \
                      ubuntu@\$NODE2_IP:/home/ubuntu/srs-uesim.log $WORKSPACE/logs
               cd $WORKSPACE/logs
-              AMF_POD_NAME=\$(kubectl get pods -n omec | grep amf | awk 'NR==1{print \$1}')
+              AMF_POD_NAME=\$(kubectl get pods -n aether-5gc | grep amf | awk 'NR==1{print \$1}')
               echo \$AMF_POD_NAME
-              kubectl logs \$AMF_POD_NAME -n omec > srsran_amf.log
-              WEBUI_POD_NAME=\$(kubectl get pods -n omec | grep webui | awk 'NR==1{print \$1}')
+              kubectl logs \$AMF_POD_NAME -n aether-5gc > srsran_amf.log
+              WEBUI_POD_NAME=\$(kubectl get pods -n aether-5gc | grep webui | awk 'NR==1{print \$1}')
               echo \$WEBUI_POD_NAME
-              kubectl logs \$WEBUI_POD_NAME -n omec > srsran_webui.log
-              UDR_POD_NAME=\$(kubectl get pods -n omec | grep udr | awk 'NR==1{print \$1}')
+              kubectl logs \$WEBUI_POD_NAME -n aether-5gc > srsran_webui.log
+              UDR_POD_NAME=\$(kubectl get pods -n aether-5gc | grep udr | awk 'NR==1{print \$1}')
               echo \$UDR_POD_NAME
-              kubectl logs \$UDR_POD_NAME -n omec > srsran_udr.log
-              UDM_POD_NAME=\$(kubectl get pods -n omec | grep udm | awk 'NR==1{print \$1}')
+              kubectl logs \$UDR_POD_NAME -n aether-5gc > srsran_udr.log
+              UDM_POD_NAME=\$(kubectl get pods -n aether-5gc | grep udm | awk 'NR==1{print \$1}')
               echo \$UDM_POD_NAME
-              kubectl logs \$UDM_POD_NAME -n omec > srsran_udm.log
-              AUSF_POD_NAME=\$(kubectl get pods -n omec | grep ausf | awk 'NR==1{print \$1}')
+              kubectl logs \$UDM_POD_NAME -n aether-5gc > srsran_udm.log
+              AUSF_POD_NAME=\$(kubectl get pods -n aether-5gc | grep ausf | awk 'NR==1{print \$1}')
               echo \$AUSF_POD_NAME
-              kubectl logs \$AUSF_POD_NAME -n omec > srsran_ausf.log
-              SMF_POD_NAME=\$(kubectl get pods -n omec | grep smf | awk 'NR==1{print \$1}')
+              kubectl logs \$AUSF_POD_NAME -n aether-5gc > srsran_ausf.log
+              SMF_POD_NAME=\$(kubectl get pods -n aether-5gc | grep smf | awk 'NR==1{print \$1}')
               echo \$SMF_POD_NAME
-              kubectl logs \$SMF_POD_NAME -n omec > srsran_smf.log
+              kubectl logs \$SMF_POD_NAME -n aether-5gc > srsran_smf.log
             """
         }
     }
