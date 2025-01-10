@@ -108,7 +108,6 @@ EOF
               cd $WORKSPACE/aether-onramp
               NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
               sleep 60
-              kubectl get pods -n aether-5gc
               make aether-gnbsim-run
               cd /home/ubuntu
               ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
