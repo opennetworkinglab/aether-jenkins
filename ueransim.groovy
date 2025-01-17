@@ -84,6 +84,7 @@ EOF
               sudo cp  vars/main-ueransim.yml  vars/main.yml
               grep -rl "ens18" . | xargs sed -i "s/ens18/\$MYIFC/g"
               sudo sed -i "s/10.76.28.113/\$MYIP/" vars/main.yml
+              sudo sed -i "s/10.76.28.111/\$NODE2_IP/" vars/main.yml
               make aether-pingall
             """ 
           }
