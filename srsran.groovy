@@ -9,9 +9,9 @@ pipeline {
   agent {
         label "${AgentLabel}"
   }
-    
+
   stages{
-      
+
     stage('Verify AWS Accessible') {
         steps {
           withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
@@ -29,7 +29,7 @@ pipeline {
           }
         }
     }
-    
+
     stage('Configure OnRamp') {
         steps {
           withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
@@ -42,7 +42,7 @@ pipeline {
               WORKERIP=\$(echo \$NEWIP | tr -d '"')
               echo \$WORKERIP
               cd $WORKSPACE
-              git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git 
+              git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git
               cd aether-onramp
               # Determine Local IP
               MYIP=\$(hostname -I | awk '{print \$1}')
@@ -80,14 +80,13 @@ EOF
               cat hosts.ini
               NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
               echo "NODE2_IP is " \$NODE2_IP
-              sleep 120
               sudo cp  vars/main-srsran.yml  vars/main.yml
               grep -rl "ens18" . | xargs sed -i "s/ens18/\$MYIFC/g"
               sudo sed -i "s/10.76.28.113/\$MYIP/" vars/main.yml
               sudo sed -i "s/172.20.0.2/\$NODE2_IP/" vars/main.yml
-              sudo sed -i "s/ran_subnet:.*/ran_subnet: \"\"/" vars/main.yml
+              sudo sed -i "s/ran_subnet:.*/ran_subnet: \"192.168.163.0\\\\/24\"/" vars/main.yml
               make aether-pingall
-            """ 
+            """
           }
         }
     }
@@ -98,22 +97,24 @@ EOF
             cd $WORKSPACE/aether-onramp
             make aether-k8s-install
             make aether-5gc-install
+            sleep 10
             make srsran-gnb-install
             kubectl get pods -n aether-5gc
-          """ 
+          """
         }
     }
-    
+
     stage("Run srs-uesim"){
         steps {
-            sh """
-              cd $WORKSPACE/aether-onramp
-              kubectl get pods -n aether-5gc
-              make srsran-uesim-start
-            """
+            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                sh """
+                    cd $WORKSPACE/aether-onramp
+                    make srsran-uesim-start
+                """
+            }
         }
     }
-    
+
     stage("Validate Results"){
         steps {
           catchError(message:'SRSRAN Validation is failed', buildResult:'FAILURE',
@@ -178,7 +179,7 @@ EOF
         credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
         sh """
           cd $WORKSPACE/aether-onramp
-	  make srsran-uesim-stop
+          make srsran-uesim-stop
           make srsran-gnb-uninstall
           make 5gc-uninstall
           make k8s-uninstall
@@ -186,11 +187,11 @@ EOF
         """
       }
     }
-    
+
     // triggered when red sign
     failure {
         slackSend color: "danger", message: "FAILED ${env.JOB_NAME} ${env.BUILD_NUMBER} ${env.BUILD_URL}"
-            
+
     }
   }
 }
