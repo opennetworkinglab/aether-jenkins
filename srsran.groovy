@@ -18,6 +18,7 @@ pipeline {
               credentialsId: 'AKIA6OOX34YQ5DJLY5GJ',
               secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
             sh """
+              set -e
               aws --region us-west-2 ec2 start-instances --instance-ids    i-000f1f7e33fe5a86e
               aws --region us-west-2 ec2 modify-instance-attribute --no-source-dest-check \
                   --instance-id i-000f1f7e33fe5a86e
@@ -35,6 +36,7 @@ pipeline {
           withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
               credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
             sh """
+              set -e
               NEWIP=\$(aws --region us-west-2 ec2 describe-instances \
                            --instance-ids i-000f1f7e33fe5a86e \
                            --query 'Reservations[0].Instances[0].PrivateIpAddress')
@@ -108,6 +110,7 @@ EOF
         steps {
             catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
                 sh """
+                    set -e
                     cd $WORKSPACE/aether-onramp
                     make srsran-uesim-start
                 """
@@ -120,6 +123,7 @@ EOF
           catchError(message:'SRSRAN Validation is failed', buildResult:'FAILURE',
             stageResult:'FAILURE') {
               sh """
+                set -e
                 cd $WORKSPACE/aether-onramp
                 NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
                 cd /home/ubuntu
@@ -132,10 +136,11 @@ EOF
           }
         }
     }
-    
+
     stage("Retrieve Logs") {
         steps {
             sh """
+              set -e
               mkdir $WORKSPACE/logs
               cd $WORKSPACE/aether-onramp
               NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
@@ -178,6 +183,7 @@ EOF
       withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
         credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
         sh """
+          set -e
           cd $WORKSPACE/aether-onramp
           make srsran-uesim-stop
           make srsran-gnb-uninstall
