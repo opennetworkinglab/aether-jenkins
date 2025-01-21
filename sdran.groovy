@@ -7,7 +7,7 @@ pipeline {
   }
 
   agent {
-        label "${AgentLabel}"
+    label "${AgentLabel}"
   }
     
   stages{
@@ -15,6 +15,7 @@ pipeline {
     stage('Configure OnRamp') {
         steps {
           sh """
+            set -e
             cd $WORKSPACE
             git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git 
             cd aether-onramp
@@ -46,6 +47,7 @@ EOF
     stage('Install Aether') {
         steps {
           sh """
+            set -e
             cd $WORKSPACE/aether-onramp
             make k8s-install
             make 5gc-install
@@ -58,25 +60,34 @@ EOF
 
     stage ('Validate Results'){
         steps {
-            catchError(message:'RANSIM Validation fails', buildResult:'FAILURE', stageResult:'FAILURE')
-            {
-              sh """
-                cd $WORKSPACE
-                echo "Give the simulator a chance to run (ideally, playbook should loop until done)"
-                sleep 60
-                kubectl exec -i deployment/onos-cli -n sdran -- onos kpimon list metrics --no-headers > ransim.log
-                kubectl exec -i deployment/onos-cli -n sdran -- onos ransim get ueCount >> ransim.log
-                kubectl exec -i deployment/onos-cli -n sdran -- onos ransim get cells --no-headers >> ransim.log
-                kubectl exec -i deployment/onos-cli -n sdran -- onos topo get entity e2cell >> ransim.log
-                cat ransim.log
-              """
-            }    
+            catchError(message: 'RANSIM Validation fails', buildResult: 'FAILURE', stageResult: 'FAILURE') { errorMessage ->
+                echo "Error during validation: ${errorMessage}"
+                script {
+                    try {
+                        echo "Give the simulator a chance to run (ideally, playbook should loop until done)"
+                        sleep 60
+                        sh """
+                            kubectl exec -i deployment/onos-cli -n sdran -- onos kpimon list metrics --no-headers > ransim.log
+                            kubectl exec -i deployment/onos-cli -n sdran -- onos ransim get ueCount >> ransim.log
+                            kubectl exec -i deployment/onos-cli -n sdran -- onos ransim get cells --no-headers >> ransim.log
+                            kubectl exec -i deployment/onos-cli -n sdran -- onos topo get entity e2cell >> ransim.log
+                        """
+                        echo "RANSIM log output:"
+                        sh "cat ransim.log"
+                    } catch (e) {
+                        echo "Error during RANSIM execution: ${e.getMessage()}"
+                        currentBuild.result = 'FAILURE'
+                        throw e
+                    }
+                }
+            }
         }
     }
-	
+
     stage ('Retrieve Logs'){
         steps {
             sh '''
+              set -e
               cd $WORKSPACE
               mkdir logs
               cp ransim.log logs
@@ -114,6 +125,7 @@ EOF
   post {
     always {
       sh """
+        set -e
         cd $WORKSPACE/aether-onramp
         make sdran-uninstall
         make 5gc-uninstall

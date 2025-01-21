@@ -9,12 +9,13 @@ pipeline {
   agent {
         label "${AgentLabel}"
   }
-    
+
   stages{
 
     stage('Configure OnRamp') {
         steps {
           sh """
+            set -e
             cd $WORKSPACE
             git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git 
             cd aether-onramp
@@ -38,14 +39,16 @@ EOF
             sudo cp vars/main-quickstart.yml vars/main.yml
             sudo sed -i "s/10.76.28.113/\$MYIP/" vars/main.yml
             sudo sed -i "s/ens18/\$MYIFC/g" vars/main.yml
+            sudo sed -i "s/standalone: true/standalone: false/" vars/main.yml
             make aether-pingall
           """ 
         }
     }
-    
+
     stage('Install Aether') {
         steps {
           sh """
+            set -e
             cd $WORKSPACE/aether-onramp
             make aether-k8s-install
             make aether-5gc-install
@@ -60,6 +63,7 @@ EOF
         steps {
             retry(2) {
                  sh """
+                   set -e
                    cd $WORKSPACE/aether-onramp
                    sleep 60
                    make aether-gnbsim-run
@@ -71,19 +75,20 @@ EOF
 
     stage ('Validate Results'){
         steps {
-            catchError(message:'gNBsim Validation fails', buildResult:'FAILURE', stageResult:'FAILURE')
-            {
+            catchError(message: 'gNBsim Validation failed: Check summary log for issues', buildResult: 'FAILURE', stageResult: 'FAILURE') {
                 sh """
+                  set -e
                   # weaker validation test
                   docker exec gnbsim-1 cat summary.log | grep "Ue's Passed" | grep -v "Passed: 0"
                 """
-            }    
+            }
         }
     }
-	
+
     stage ('Retrieve Logs'){
         steps {
             sh '''
+              set -e
               mkdir $WORKSPACE/logs
               cd $WORKSPACE/logs
               logfile=\$(docker exec gnbsim-1 ls | grep "gnbsim1-.*.log")
@@ -122,6 +127,7 @@ EOF
   post {
     always {
       sh """
+        set -e
         cd $WORKSPACE/aether-onramp
         make gnbsim-uninstall
         make 5gc-uninstall

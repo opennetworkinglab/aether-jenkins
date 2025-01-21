@@ -7,7 +7,7 @@ pipeline {
   }
 
   agent {
-        label "${AgentLabel}"
+    label "${AgentLabel}"
   }
     
   stages{
@@ -15,6 +15,7 @@ pipeline {
     stage('Configure OnRamp') {
         steps {
           sh """
+            set -e
             cd $WORKSPACE
             git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git 
             cd aether-onramp
@@ -46,6 +47,7 @@ EOF
     stage('Install Aether') {
         steps {
           sh """
+            set -e
             cd $WORKSPACE/aether-onramp
             make k8s-install
             make 5gc-install
@@ -55,10 +57,11 @@ EOF
         }
     }
 
-    stage('Run Emulated UE'){
+    stage('Run Emulated UE') {
         steps {
             retry(2) {
                  sh """
+                   set -e
                    cd $WORKSPACE/aether-onramp
                    sleep 60
                    make oai-uesim-start
@@ -68,22 +71,28 @@ EOF
         }
     }
 
-    stage ('Validate Results'){
+    stage('Validate Results') {
         steps {
-            catchError(message:'UEsim Validation fails', buildResult:'FAILURE', stageResult:'FAILURE')
-            {
+            catchError(message: 'UEsim Validation fails: Check UEsim.log for details', buildResult: 'FAILURE', stageResult: 'FAILURE') {
                 sh """
+                  set -e
                   cd $WORKSPACE
                   docker exec rfsim5g-oai-nr-ue ping -c 2 -I oaitun_ue1 192.168.250.1 > UEsim.log
-                  grep "0% packet loss" UEsim.log
+                  if grep "0% packet loss" UEsim.log; then
+                    echo "Validation successful: No packet loss"
+                  else
+                    echo "Validation failed: Packet loss detected"
+                    exit 1
+                  fi
                 """
-            }    
+            }
         }
     }
-	
+
     stage ('Retrieve Logs'){
         steps {
             sh '''
+              set -e
               cd $WORKSPACE
               mkdir logs
               cp UEsim.log logs
@@ -110,7 +119,7 @@ EOF
         }
     }
 
-    stage("Archive Artifacts"){
+    stage("Archive Artifacts") {
         steps {
             archiveArtifacts allowEmptyArchive: true, artifacts: "**/logs/*.log", followSymlinks: false
         }
@@ -121,6 +130,7 @@ EOF
   post {
     always {
       sh """
+        set -e
         cd $WORKSPACE/aether-onramp
         make oai-uesim-stop
         make oai-gnb-uninstall

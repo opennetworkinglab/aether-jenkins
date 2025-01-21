@@ -18,7 +18,8 @@ pipeline {
               credentialsId: 'AKIA6OOX34YQ5DJLY5GJ',
               secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
             sh """
-              aws --region us-west-2 ec2 start-instances --instance-ids    i-000f1f7e33fe5a86e
+              set -e
+              aws --region us-west-2 ec2 start-instances --instance-ids i-000f1f7e33fe5a86e
               aws --region us-west-2 ec2 modify-instance-attribute --no-source-dest-check \
                   --instance-id i-000f1f7e33fe5a86e
               aws --region us-west-2 ec2 describe-instances --instance-ids i-000f1f7e33fe5a86e
@@ -34,7 +35,8 @@ pipeline {
         steps {
           withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
               credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
-            sh """
+            sh '''
+              set -e
               NEWIP=\$(aws --region us-west-2 ec2 describe-instances \
                            --instance-ids i-000f1f7e33fe5a86e \
                            --query 'Reservations[0].Instances[0].PrivateIpAddress')
@@ -107,10 +109,11 @@ EOF
     stage("Run srs-uesim"){
         steps {
             catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
-                sh """
+                sh '''
+                    set -e
                     cd $WORKSPACE/aether-onramp
                     make srsran-uesim-start
-                """
+                '''
             }
         }
     }
@@ -119,49 +122,51 @@ EOF
         steps {
           catchError(message:'SRSRAN Validation is failed', buildResult:'FAILURE',
             stageResult:'FAILURE') {
-              sh """
+              sh '''
+                set -e
                 cd $WORKSPACE/aether-onramp
-                NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
+                NODE2_IP=$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print $3}')
                 cd /home/ubuntu
-                ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+                ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@$NODE2_IP \
                     "docker exec rfsim5g-srsran-nr-ue ip netns exec ue1 ping -c 2 192.168.250.1 > /home/ubuntu/srs-uesim.log"
                 scp -i "aether-qa.pem" -o StrictHostKeyChecking=no \
-                     ubuntu@\$NODE2_IP:/home/ubuntu/srs-uesim.log /home/ubuntu
+                     ubuntu@$NODE2_IP:/home/ubuntu/srs-uesim.log /home/ubuntu
                 grep "0% packet loss" srs-uesim.log
-              """
+              '''
           }
         }
     }
-    
+
     stage("Retrieve Logs") {
         steps {
-            sh """
+            sh '''
+              set -e
               mkdir $WORKSPACE/logs
               cd $WORKSPACE/aether-onramp
-              NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
+              NODE2_IP=$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print $3}')
               cd /home/ubuntu
               scp -i "aether-qa.pem" -o StrictHostKeyChecking=no \
-                     ubuntu@\$NODE2_IP:/home/ubuntu/srs-uesim.log $WORKSPACE/logs
+                     ubuntu@$NODE2_IP:/home/ubuntu/srs-uesim.log $WORKSPACE/logs
               cd $WORKSPACE/logs
-              AMF_POD_NAME=\$(kubectl get pods -n aether-5gc | grep amf | awk 'NR==1{print \$1}')
-              echo \$AMF_POD_NAME
-              kubectl logs \$AMF_POD_NAME -n aether-5gc > srsran_amf.log
-              WEBUI_POD_NAME=\$(kubectl get pods -n aether-5gc | grep webui | awk 'NR==1{print \$1}')
-              echo \$WEBUI_POD_NAME
-              kubectl logs \$WEBUI_POD_NAME -n aether-5gc > srsran_webui.log
-              UDR_POD_NAME=\$(kubectl get pods -n aether-5gc | grep udr | awk 'NR==1{print \$1}')
-              echo \$UDR_POD_NAME
-              kubectl logs \$UDR_POD_NAME -n aether-5gc > srsran_udr.log
-              UDM_POD_NAME=\$(kubectl get pods -n aether-5gc | grep udm | awk 'NR==1{print \$1}')
-              echo \$UDM_POD_NAME
-              kubectl logs \$UDM_POD_NAME -n aether-5gc > srsran_udm.log
-              AUSF_POD_NAME=\$(kubectl get pods -n aether-5gc | grep ausf | awk 'NR==1{print \$1}')
-              echo \$AUSF_POD_NAME
-              kubectl logs \$AUSF_POD_NAME -n aether-5gc > srsran_ausf.log
-              SMF_POD_NAME=\$(kubectl get pods -n aether-5gc | grep smf | awk 'NR==1{print \$1}')
-              echo \$SMF_POD_NAME
-              kubectl logs \$SMF_POD_NAME -n aether-5gc > srsran_smf.log
-            """
+              AMF_POD_NAME=$(kubectl get pods -n aether-5gc | grep amf | awk 'NR==1{print $1}')
+              echo $AMF_POD_NAME
+              kubectl logs $AMF_POD_NAME -n aether-5gc > srsran_amf.log
+              WEBUI_POD_NAME=$(kubectl get pods -n aether-5gc | grep webui | awk 'NR==1{print $1}')
+              echo $WEBUI_POD_NAME
+              kubectl logs $WEBUI_POD_NAME -n aether-5gc > srsran_webui.log
+              UDR_POD_NAME=$(kubectl get pods -n aether-5gc | grep udr | awk 'NR==1{print $1}')
+              echo $UDR_POD_NAME
+              kubectl logs $UDR_POD_NAME -n aether-5gc > srsran_udr.log
+              UDM_POD_NAME=$(kubectl get pods -n aether-5gc | grep udm | awk 'NR==1{print $1}')
+              echo $UDM_POD_NAME
+              kubectl logs $UDM_POD_NAME -n aether-5gc > srsran_udm.log
+              AUSF_POD_NAME=$(kubectl get pods -n aether-5gc | grep ausf | awk 'NR==1{print $1}')
+              echo $AUSF_POD_NAME
+              kubectl logs $AUSF_POD_NAME -n aether-5gc > srsran_ausf.log
+              SMF_POD_NAME=$(kubectl get pods -n aether-5gc | grep smf | awk 'NR==1{print $1}')
+              echo $SMF_POD_NAME
+              kubectl logs $SMF_POD_NAME -n aether-5gc > srsran_smf.log
+            '''
         }
     }
 
@@ -178,6 +183,7 @@ EOF
       withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
         credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
         sh """
+          set -e
           cd $WORKSPACE/aether-onramp
           make srsran-uesim-stop
           make srsran-gnb-uninstall

@@ -18,7 +18,8 @@ pipeline {
               credentialsId: 'AKIA6OOX34YQ5DJLY5GJ',
               secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
             sh """
-              aws --region us-west-2 ec2 start-instances --instance-ids    i-000f1f7e33fe5a86e
+              set -e
+              aws --region us-west-2 ec2 start-instances --instance-ids i-000f1f7e33fe5a86e
               aws --region us-west-2 ec2 modify-instance-attribute --no-source-dest-check \
                   --instance-id i-000f1f7e33fe5a86e
               aws --region us-west-2 ec2 describe-instances --instance-ids i-000f1f7e33fe5a86e
@@ -35,6 +36,7 @@ pipeline {
           withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
               credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
             sh """
+              set -e
               NEWIP=\$(aws --region us-west-2 ec2 describe-instances \
                            --instance-ids i-000f1f7e33fe5a86e \
                            --query 'Reservations[0].Instances[0].PrivateIpAddress')
@@ -94,6 +96,7 @@ EOF
     stage('Install Aether') {
         steps {
           sh """
+            set -e
             cd $WORKSPACE/aether-onramp
             make aether-k8s-install
             make aether-5gc-install
@@ -106,6 +109,7 @@ EOF
     stage("Run UERANSIM"){
         steps {
             sh """
+              set -e
               cd $WORKSPACE/aether-onramp
               sleep 60
               make aether-ueransim-run
@@ -119,6 +123,7 @@ EOF
           catchError(message:'UERANSIM Validation has failed', buildResult:'FAILURE',
             stageResult:'FAILURE') {
               sh """
+                set -e
                 cd $WORKSPACE/aether-onramp
                 NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
                 # substitute some observable action, such as iperf
@@ -133,6 +138,7 @@ EOF
     stage("Retrieve Logs"){
         steps {
             sh '''
+              set -e
               mkdir $WORKSPACE/logs
               cd $WORKSPACE/logs 
               AMF_POD_NAME=\$(kubectl get pods -n aether-5gc | grep amf | awk 'NR==1{print \$1}')
@@ -170,6 +176,7 @@ EOF
       withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
         credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
         sh """
+          set -e
           cd $WORKSPACE/aether-onramp
           make ueransim-uninstall
           make 5gc-uninstall

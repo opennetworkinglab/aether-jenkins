@@ -9,12 +9,13 @@ pipeline {
   agent {
         label "${AgentLabel}"
   }
-    
+
   stages{
 
     stage('Configure OnRamp') {
         steps {
           sh """
+            set -e
             cd $WORKSPACE
             git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git 
             cd aether-onramp
@@ -43,10 +44,11 @@ EOF
           """ 
         }
     }
-    
+
     stage('Install Aether') {
         steps {
           sh """
+            set -e
             cd $WORKSPACE/aether-onramp
             make k8s-install
             make roc-install
@@ -66,6 +68,7 @@ EOF
         steps {
             retry(2) {
                  sh """
+                   set -e
                    cd $WORKSPACE/aether-onramp
                    sleep 60
                    make aether-gnbsim-run
@@ -78,19 +81,20 @@ EOF
 
     stage ('Validate Results'){
         steps {
-            catchError(message:'gNBsim Validation fails', buildResult:'FAILURE', stageResult:'FAILURE')
-            {
+            catchError(message:'gNBsim Validation failed at Validate Results stage', buildResult:'FAILURE', stageResult:'FAILURE') {
                 sh """
-                  docker exec gnbsim-1 cat summary.log  | grep "Profile Status: PASS"
-                  docker exec gnbsim-2 cat summary.log  | grep "Profile Status: PASS"
+                  set -e
+                  docker exec gnbsim-1 cat summary.log | grep "Profile Status: PASS"
+                  docker exec gnbsim-2 cat summary.log | grep "Profile Status: PASS"
                 """
             }    
         }
     }
-	
+  
     stage ('Retrieve Logs'){
         steps {
             sh '''
+              set -e
               mkdir $WORKSPACE/logs
               cd $WORKSPACE/logs
               logfile=\$(docker exec gnbsim-1 ls | grep "gnbsim1-.*.log")
@@ -132,6 +136,7 @@ EOF
   post {
     always {
       sh """
+        set -e
         cd $WORKSPACE/aether-onramp
         make gnbsim-uninstall
         make 5gc-uninstall
