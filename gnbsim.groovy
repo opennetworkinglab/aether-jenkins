@@ -18,6 +18,7 @@ pipeline {
               credentialsId: 'AKIA6OOX34YQ5DJLY5GJ',
               secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
             sh """
+              set -e
               aws --region us-west-2 ec2 start-instances --instance-ids    i-000f1f7e33fe5a86e
               aws --region us-west-2 ec2 modify-instance-attribute --no-source-dest-check \
                   --instance-id i-000f1f7e33fe5a86e
@@ -29,12 +30,13 @@ pipeline {
           }
         }
     }
-    
+
     stage('Configure OnRamp') {
         steps {
           withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
               credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
             sh """
+              set -e
               NEWIP=\$(aws --region us-west-2 ec2 describe-instances \
                            --instance-ids i-000f1f7e33fe5a86e \
                            --query 'Reservations[0].Instances[0].PrivateIpAddress')
@@ -42,7 +44,7 @@ pipeline {
               WORKERIP=\$(echo \$NEWIP | tr -d '"')
               echo \$WORKERIP
               cd $WORKSPACE
-              git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git 
+              git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git
               cd aether-onramp
               # Determine Local IP
               MYIP=\$(hostname -I | awk '{print \$1}')
@@ -85,7 +87,7 @@ EOF
               grep -rl "ens18" . | xargs sed -i "s/ens18/\$MYIFC/g"
               sudo sed -i "s/10.76.28.113/\$MYIP/" vars/main.yml
               make aether-pingall
-            """ 
+            """
           }
         }
     }
@@ -93,6 +95,7 @@ EOF
     stage('Install Aether') {
         steps {
           sh """
+            set -e
             cd $WORKSPACE/aether-onramp
             make aether-k8s-install
             make aether-5gc-install
@@ -101,10 +104,11 @@ EOF
           """ 
         }
     }
-    
+
     stage("Run gNBsim"){
         steps {
             sh """
+              set -e
               cd $WORKSPACE/aether-onramp
               NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
               sleep 60
@@ -117,28 +121,31 @@ EOF
             """
         }
     }
-    
+
     stage("Validate Results"){
         steps {
-          catchError(message:'Gnbsim Validation is failed', buildResult:'FAILURE',
-            stageResult:'FAILURE') {
-              sh """
-                cd $WORKSPACE/aether-onramp
-                NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
-                cd /home/ubuntu
+          catchError(message: 'Gnbsim Validation failed. Please check logs for details.',
+            buildResult: 'FAILURE',
+            stageResult: 'FAILURE') {
+            sh """
+              set -e
+              cd $WORKSPACE/aether-onramp
+              NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
+              cd /home/ubuntu
                 # weaker validation test
-                ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
-                    "docker exec gnbsim-1 cat summary.log" | grep "Ue's Passed" | grep -v "Passed: 0"
-                ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
-                    "docker exec gnbsim-2 cat summary.log" | grep "Ue's Passed" | grep -v "Passed: 0"
-              """
+              ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+                  "docker exec gnbsim-1 cat summary.log" | grep "Ue's Passed" | grep -v "Passed: 0"
+              ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+                  "docker exec gnbsim-2 cat summary.log" | grep "Ue's Passed" | grep -v "Passed: 0"
+            """
           }
         }
     }
-    
+
     stage("Retrieve Logs") {
         steps {
             sh """
+              set -e
               mkdir $WORKSPACE/logs
               cd $WORKSPACE/aether-onramp
               NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
@@ -193,6 +200,7 @@ EOF
       withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
         credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
         sh """
+          set -e
           cd $WORKSPACE/aether-onramp
           make gnbsim-uninstall
           make 5gc-uninstall
