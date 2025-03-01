@@ -1,30 +1,38 @@
 // SPDX-FileCopyrightText: 2023 Open Networking Foundation <info@opennetworking.org>
 // SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+// oai.groovy
 
 pipeline {
   options {
-    timeout(time: 1, unit: 'HOURS') 
+    timeout(time: 1, unit: 'HOURS')
   }
 
   agent {
         label "${AgentLabel}"
   }
-    
+
+  environment {
+    PEM_PATH = "/home/ubuntu/aether-qa.pem"
+  }
+
   stages{
 
     stage('Configure OnRamp') {
         steps {
-          sh """
-            cd $WORKSPACE
-            git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git 
-            cd aether-onramp
-            MYIP=\$(hostname -I | awk '{print \$1}')
-            echo "MY IP is: " \$MYIP
-            MYIFC=\$(ip route get 8.8.8.8| awk '{print \$5}'|awk /./)
-            echo "MY IFC is: " \$MYIFC
-            cat > hosts.ini << EOF
-            [all]
-node1 ansible_host=\$MYIP ansible_user=ubuntu ansible_ssh_private_key_file=/home/ubuntu/aether-qa.pem ansible_sudo_pass=ubuntu
+            withCredentials([sshUserPrivateKey(credentialsId: 'aether-qa',
+            keyFileVariable: 'aether_qa', usernameVariable: 'aether_qa_user')]) {
+              sh '''
+                cp -p "$aether_qa" "$PEM_PATH"
+                cd $WORKSPACE
+                git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git
+                cd aether-onramp
+                MYIP=\$(hostname -I | awk '{print \$1}')
+                echo "MY IP is: " \$MYIP
+                MYIFC=\$(ip route get 8.8.8.8| awk '{print \$5}'|awk /./)
+                echo "MY IFC is: " \$MYIFC
+                cat > hosts.ini << EOF
+                [all]
+node1 ansible_host=\$MYIP ansible_user=ubuntu ansible_ssh_private_key_file=$PEM_PATH ansible_sudo_pass=ubuntu
 
 [master_nodes]
 node1
@@ -35,14 +43,15 @@ node1
 [oai_nodes]
 node1
 EOF
-            sudo cp vars/main-oai.yml vars/main.yml
-            sudo sed -i "s/10.76.28.113/\$MYIP/" vars/main.yml
-            sudo sed -i "s/ens18/\$MYIFC/g" vars/main.yml
-            make aether-pingall
-          """ 
+                sudo cp vars/main-oai.yml vars/main.yml
+                sudo sed -i "s/10.76.28.113/\$MYIP/" vars/main.yml
+                sudo sed -i "s/ens18/\$MYIFC/g" vars/main.yml
+                make aether-pingall
+              '''
+            }
         }
     }
-    
+
     stage('Install Aether') {
         steps {
           sh """
@@ -51,7 +60,7 @@ EOF
             make 5gc-install
             make oai-gnb-install
             kubectl get pods -n aether-5gc
-          """ 
+          """
         }
     }
 
@@ -64,7 +73,7 @@ EOF
                    make oai-uesim-start
                    docker ps
                  """
-            } 
+            }
         }
     }
 
@@ -77,10 +86,10 @@ EOF
                   docker exec rfsim5g-oai-nr-ue ping -c 2 -I oaitun_ue1 192.168.250.1 > UEsim.log
                   grep "0% packet loss" UEsim.log
                 """
-            }    
+            }
         }
     }
-	
+
     stage ('Retrieve Logs'){
         steps {
             sh '''
@@ -132,7 +141,7 @@ EOF
     // triggered when red sign
     failure {
         slackSend color: "danger", message: "FAILED ${env.JOB_NAME} ${env.BUILD_NUMBER} ${env.BUILD_URL}"
-            
+
     }
   }
 }
