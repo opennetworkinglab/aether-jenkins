@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 // SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+// srsran.groovy
 
 pipeline {
   options {
@@ -7,7 +8,12 @@ pipeline {
   }
 
   agent {
-        label "${AgentLabel}"
+      label "${AgentLabel}"
+  }
+
+  environment {
+    PEM_PATH = "/home/ubuntu/aether-qa.pem"
+    VENV_PATH = "/home/ubuntu/ubuntu_venv"
   }
 
   stages{
@@ -33,14 +39,19 @@ pipeline {
     stage('Configure OnRamp') {
         steps {
           withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-              credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
-            sh """
+              credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'),
+              sshUserPrivateKey(credentialsId: 'aether-qa', keyFileVariable: 'aether_qa')]) {
+            sh '''
+              if [[ -f $VENV_PATH/bin/activate ]]; then
+                source $VENV_PATH/bin/activate
+              fi
               NEWIP=\$(aws --region us-west-2 ec2 describe-instances \
                            --instance-ids i-000f1f7e33fe5a86e \
                            --query 'Reservations[0].Instances[0].PrivateIpAddress')
               echo \$NEWIP
               WORKERIP=\$(echo \$NEWIP | tr -d '"')
               echo \$WORKERIP
+              cp -p "$aether_qa" "$PEM_PATH"
               cd $WORKSPACE
               git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git
               cd aether-onramp
@@ -65,8 +76,8 @@ pipeline {
               # Create appropriate hosts.ini file
               cat > hosts.ini << EOF
 [all]
-node1 ansible_host=\$MYIP ansible_user=ubuntu ansible_ssh_private_key_file=/home/ubuntu/aether-qa.pem ansible_sudo_pass=ubuntu
-node2 ansible_host=\$WORKERIP ansible_user=ubuntu ansible_ssh_private_key_file=/home/ubuntu/aether-qa.pem ansible_sudo_pass=ubuntu
+node1 ansible_host=\$MYIP ansible_user=ubuntu ansible_ssh_private_key_file=$PEM_PATH ansible_sudo_pass=ubuntu
+node2 ansible_host=\$WORKERIP ansible_user=ubuntu ansible_ssh_private_key_file=$PEM_PATH ansible_sudo_pass=ubuntu
 
 [master_nodes]
 node1
@@ -86,7 +97,7 @@ EOF
               sudo sed -i "s/172.20.0.2/\$NODE2_IP/" vars/main.yml
               sudo sed -i "s/ran_subnet:.*/ran_subnet: \"192.168.163.0\\\\/24\"/" vars/main.yml
               make aether-pingall
-            """
+            '''
           }
         }
     }
@@ -94,6 +105,9 @@ EOF
     stage('Install Aether') {
         steps {
           sh """
+            if [[ -f $VENV_PATH/bin/activate ]]; then
+              source $VENV_PATH/bin/activate
+            fi
             cd $WORKSPACE/aether-onramp
             make aether-k8s-install
             make aether-5gc-install
@@ -108,6 +122,9 @@ EOF
         steps {
             catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
                 sh """
+                    if [[ -f $VENV_PATH/bin/activate ]]; then
+                      source $VENV_PATH/bin/activate
+                    fi
                     cd $WORKSPACE/aether-onramp
                     make srsran-uesim-start
                 """
@@ -120,27 +137,33 @@ EOF
           catchError(message:'SRSRAN Validation is failed', buildResult:'FAILURE',
             stageResult:'FAILURE') {
               sh """
+                if [[ -f $VENV_PATH/bin/activate ]]; then
+                  source $VENV_PATH/bin/activate
+                fi
                 cd $WORKSPACE/aether-onramp
                 NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
                 cd /home/ubuntu
-                ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+                ssh -i "${env.PEM_PATH}" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
                     "docker exec rfsim5g-srsran-nr-ue ip netns exec ue1 ping -c 2 192.168.250.1 > /home/ubuntu/srs-uesim.log"
-                scp -i "aether-qa.pem" -o StrictHostKeyChecking=no \
+                scp -i "${env.PEM_PATH}" -o StrictHostKeyChecking=no \
                      ubuntu@\$NODE2_IP:/home/ubuntu/srs-uesim.log /home/ubuntu
                 grep "0% packet loss" srs-uesim.log
               """
           }
         }
     }
-    
+
     stage("Retrieve Logs") {
         steps {
             sh """
+              if [[ -f $VENV_PATH/bin/activate ]]; then
+                source $VENV_PATH/bin/activate
+              fi
               mkdir $WORKSPACE/logs
               cd $WORKSPACE/aether-onramp
               NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
               cd /home/ubuntu
-              scp -i "aether-qa.pem" -o StrictHostKeyChecking=no \
+              scp -i "${env.PEM_PATH}" -o StrictHostKeyChecking=no \
                      ubuntu@\$NODE2_IP:/home/ubuntu/srs-uesim.log $WORKSPACE/logs
               cd $WORKSPACE/logs
               AMF_POD_NAME=\$(kubectl get pods -n aether-5gc | grep amf | awk 'NR==1{print \$1}')
@@ -178,6 +201,9 @@ EOF
       withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
         credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
         sh """
+          if [[ -f $VENV_PATH/bin/activate ]]; then
+            source $VENV_PATH/bin/activate
+          fi
           cd $WORKSPACE/aether-onramp
           make srsran-uesim-stop
           make srsran-gnb-uninstall
@@ -191,7 +217,6 @@ EOF
     // triggered when red sign
     failure {
         slackSend color: "danger", message: "FAILED ${env.JOB_NAME} ${env.BUILD_NUMBER} ${env.BUILD_URL}"
-
     }
   }
 }

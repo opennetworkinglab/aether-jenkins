@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 // SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+// ueransim.groovy
 
 pipeline {
   options {
@@ -9,9 +10,14 @@ pipeline {
   agent {
         label "${AgentLabel}"
   }
-    
+
+  environment {
+    PEM_PATH = "/home/ubuntu/aether-qa.pem"
+    VENV_PATH = "/home/ubuntu/ubuntu_venv"
+  }
+
   stages{
-      
+
     stage('Verify AWS Accessible') {
         steps {
           withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
@@ -29,20 +35,25 @@ pipeline {
           }
         }
     }
-    
+
     stage('Configure OnRamp') {
         steps {
           withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-              credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
-            sh """
+              credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'),
+              sshUserPrivateKey(credentialsId: 'aether-qa', keyFileVariable: 'aether_qa')]) {
+            sh '''
+              if [[ -f $VENV_PATH/bin/activate ]]; then
+                source $VENV_PATH/bin/activate
+              fi
               NEWIP=\$(aws --region us-west-2 ec2 describe-instances \
                            --instance-ids i-000f1f7e33fe5a86e \
                            --query 'Reservations[0].Instances[0].PrivateIpAddress')
               echo \$NEWIP
               WORKERIP=\$(echo \$NEWIP | tr -d '"')
               echo \$WORKERIP
+              cp -p "$aether_qa" "$PEM_PATH"
               cd $WORKSPACE
-              git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git 
+              git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git
               cd aether-onramp
               # Determine Local IP
               MYIP=\$(hostname -I | awk '{print \$1}')
@@ -65,8 +76,8 @@ pipeline {
               # Create appropriate hosts.ini file
               cat > hosts.ini << EOF
 [all]
-node1 ansible_host=\$MYIP ansible_user=ubuntu ansible_ssh_private_key_file=/home/ubuntu/aether-qa.pem ansible_sudo_pass=ubuntu
-node2 ansible_host=\$WORKERIP ansible_user=ubuntu ansible_ssh_private_key_file=/home/ubuntu/aether-qa.pem ansible_sudo_pass=ubuntu
+node1 ansible_host=\$MYIP ansible_user=ubuntu ansible_ssh_private_key_file=$PEM_PATH ansible_sudo_pass=ubuntu
+node2 ansible_host=\$WORKERIP ansible_user=ubuntu ansible_ssh_private_key_file=$PEM_PATH ansible_sudo_pass=ubuntu
 
 [master_nodes]
 node1
@@ -86,7 +97,7 @@ EOF
               sudo sed -i "s/10.76.28.113/\$MYIP/" vars/main.yml
               sudo sed -i "s/10.76.28.111/\$NODE2_IP/" vars/main.yml
               make aether-pingall
-            """ 
+            '''
           }
         }
     }
@@ -94,18 +105,24 @@ EOF
     stage('Install Aether') {
         steps {
           sh """
+            if [[ -f $VENV_PATH/bin/activate ]]; then
+              source $VENV_PATH/bin/activate
+            fi
             cd $WORKSPACE/aether-onramp
             make aether-k8s-install
             make aether-5gc-install
             make aether-ueransim-install
             kubectl get pods -n aether-5gc
-          """ 
+          """
         }
     }
-    
+
     stage("Run UERANSIM"){
         steps {
             sh """
+              if [[ -f $VENV_PATH/bin/activate ]]; then
+                source $VENV_PATH/bin/activate
+              fi
               cd $WORKSPACE/aether-onramp
               sleep 60
               make aether-ueransim-run
@@ -113,28 +130,34 @@ EOF
             """
         }
     }
-            
+
     stage("Validate Results"){
         steps {
           catchError(message:'UERANSIM Validation has failed', buildResult:'FAILURE',
             stageResult:'FAILURE') {
               sh """
+                if [[ -f $VENV_PATH/bin/activate ]]; then
+                  source $VENV_PATH/bin/activate
+                fi
                 cd $WORKSPACE/aether-onramp
                 NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
                 # substitute some observable action, such as iperf
                 cd /home/ubuntu
-                ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+                ssh -i "${env.PEM_PATH}" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
 		   "ip a | grep -A 1 'uesimtun0' | grep inet | awk '{print \$2}' | cut -d'/' -f1"
               """
           }
         }
     }
-    
+
     stage("Retrieve Logs"){
         steps {
             sh '''
+              if [[ -f $VENV_PATH/bin/activate ]]; then
+                source $VENV_PATH/bin/activate
+              fi
               mkdir $WORKSPACE/logs
-              cd $WORKSPACE/logs 
+              cd $WORKSPACE/logs
               AMF_POD_NAME=\$(kubectl get pods -n aether-5gc | grep amf | awk 'NR==1{print \$1}')
               echo "${AMF_POD_NAME}"
               kubectl logs $AMF_POD_NAME -n aether-5gc > ueransim_amf.log
@@ -170,6 +193,9 @@ EOF
       withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
         credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
         sh """
+          if [[ -f $VENV_PATH/bin/activate ]]; then
+            source $VENV_PATH/bin/activate
+          fi
           cd $WORKSPACE/aether-onramp
           make ueransim-uninstall
           make 5gc-uninstall
@@ -178,11 +204,10 @@ EOF
         """
       }
     }
-    
+
     // triggered when red sign
     failure {
         slackSend color: "danger", message: "FAILED ${env.JOB_NAME} ${env.BUILD_NUMBER} ${env.BUILD_URL}"
-            
     }
   }
 }
