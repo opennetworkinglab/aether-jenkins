@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 // SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+// upf.groovy
 
 pipeline {
   options {
@@ -9,9 +10,14 @@ pipeline {
   agent {
         label "${AgentLabel}"
   }
-    
+
+  environment {
+    PEM_PATH = "/home/ubuntu/aether-qa.pem"
+    VENV_PATH = "/home/ubuntu/ubuntu_venv"
+  }
+
   stages{
-      
+
     stage('Verify AWS Accessible') {
         steps {
           withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
@@ -29,20 +35,25 @@ pipeline {
           }
         }
     }
-    
+
     stage('Configure OnRamp') {
         steps {
           withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-              credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
-            sh """
+              credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'),
+              sshUserPrivateKey(credentialsId: 'aether-qa', keyFileVariable: 'aether_qa')]) {
+            sh '''
+              if [[ -f $VENV_PATH/bin/activate ]]; then
+                source $VENV_PATH/bin/activate
+              fi
               NEWIP=\$(aws --region us-west-2 ec2 describe-instances \
                            --instance-ids i-000f1f7e33fe5a86e \
                            --query 'Reservations[0].Instances[0].PrivateIpAddress')
               echo \$NEWIP
               WORKERIP=\$(echo \$NEWIP | tr -d '"')
               echo \$WORKERIP
+              cp -p "$aether_qa" "$PEM_PATH"
               cd $WORKSPACE
-              git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git 
+              git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git
               cd aether-onramp
               # Determine Local IP
               MYIP=\$(hostname -I | awk '{print \$1}')
@@ -65,8 +76,8 @@ pipeline {
               # Create appropriate hosts.ini file
               cat > hosts.ini << EOF
 [all]
-node1 ansible_host=\$MYIP ansible_user=ubuntu ansible_ssh_private_key_file=/home/ubuntu/aether-qa.pem ansible_sudo_pass=ubuntu
-node2 ansible_host=\$WORKERIP ansible_user=ubuntu ansible_ssh_private_key_file=/home/ubuntu/aether-qa.pem ansible_sudo_pass=ubuntu
+node1 ansible_host=\$MYIP ansible_user=ubuntu ansible_ssh_private_key_file=$PEM_PATH ansible_sudo_pass=ubuntu
+node2 ansible_host=\$WORKERIP ansible_user=ubuntu ansible_ssh_private_key_file=$PEM_PATH ansible_sudo_pass=ubuntu
 
 [master_nodes]
 node1
@@ -85,7 +96,7 @@ EOF
               sudo sed -i "s/10.76.28.113/\$MYIP/" vars/main.yml
               sudo sed -i "s/ens18/\$MYIFC/g" vars/main.yml
               make aether-pingall
-            """ 
+            '''
           }
         }
     }
@@ -93,6 +104,9 @@ EOF
     stage('Install Aether') {
         steps {
           sh """
+            if [[ -f $VENV_PATH/bin/activate ]]; then
+              source $VENV_PATH/bin/activate
+            fi
             cd $WORKSPACE/aether-onramp
             make k8s-install
             make roc-install
@@ -104,65 +118,74 @@ EOF
             make roc-load
             make gnbsim-install
             kubectl get pods --all-namespaces
-          """ 
+          """
         }
     }
-    
+
     stage("Run gNBsim"){
         steps {
             sh """
+              if [[ -f $VENV_PATH/bin/activate ]]; then
+                source $VENV_PATH/bin/activate
+              fi
               cd $WORKSPACE/aether-onramp
               NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
               sleep 60
               kubectl get pods -n aether-5gc
               make aether-gnbsim-run
               cd /home/ubuntu
-              ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+              ssh -i "${env.PEM_PATH}" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
                  "docker exec  gnbsim-1 cat summary.log"
-              ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+              ssh -i "${env.PEM_PATH}" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
                  "docker exec  gnbsim-2 cat summary.log"
             """
         }
     }
-    
+
     stage("Validate Results"){
         steps {
           catchError(message:'Gnbsim Validation is failed', buildResult:'FAILURE',
             stageResult:'FAILURE') {
               sh """
+                if [[ -f $VENV_PATH/bin/activate ]]; then
+                  source $VENV_PATH/bin/activate
+                fi
                 cd $WORKSPACE/aether-onramp
                 NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
                 cd /home/ubuntu
                 # weaker validation test
-                ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+                ssh -i "${env.PEM_PATH}" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
                     "docker exec gnbsim-1 cat summary.log" | grep "Ue's Passed" | grep -v "Passed: 0"
-                ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+                ssh -i "${env.PEM_PATH}" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
                     "docker exec gnbsim-2 cat summary.log" | grep "Ue's Passed" | grep -v "Passed: 0"
               """
           }
         }
     }
-    
+
     stage("Retrieve Logs") {
         steps {
             sh """
+              if [[ -f $VENV_PATH/bin/activate ]]; then
+                source $VENV_PATH/bin/activate
+              fi
               mkdir $WORKSPACE/logs
               cd $WORKSPACE/aether-onramp
               NODE2_IP=\$(grep ansible_host hosts.ini | grep node2 | awk -F" |=" '{print \$3}')
               cd /home/ubuntu
-              LOGFILE=\$(ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+              LOGFILE=\$(ssh -i "${env.PEM_PATH}" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
                      "docker exec  gnbsim-1 ls " | grep "gnbsim1-.*.log")  || true
               echo \$LOGFILE
-              ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+              ssh -i "${env.PEM_PATH}" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
                      "docker cp gnbsim-1:/gnbsim/\$LOGFILE  /home/ubuntu/\$LOGFILE"
-              scp -i "aether-qa.pem" -o StrictHostKeyChecking=no \
+              scp -i "${env.PEM_PATH}" -o StrictHostKeyChecking=no \
                      ubuntu@\$NODE2_IP:\$LOGFILE $WORKSPACE/logs
-              LOGFILE=\$(ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+              LOGFILE=\$(ssh -i "${env.PEM_PATH}" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
                      "docker exec  gnbsim-2 ls " | grep "gnbsim2-.*.log")  || true
               echo \$LOGFILE
-              ssh -i "aether-qa.pem" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
+              ssh -i "${env.PEM_PATH}" -o StrictHostKeyChecking=no ubuntu@\$NODE2_IP \
                      "docker cp gnbsim-2:/gnbsim/\$LOGFILE  /home/ubuntu/\$LOGFILE"
-              scp -i "aether-qa.pem" -o StrictHostKeyChecking=no \
+              scp -i "${env.PEM_PATH}" -o StrictHostKeyChecking=no \
                      ubuntu@\$NODE2_IP:\$LOGFILE $WORKSPACE/logs
               cd $WORKSPACE/logs
               AMF_POD_NAME=\$(kubectl get pods -n aether-5gc | grep amf | awk 'NR==1{print \$1}')
@@ -200,6 +223,9 @@ EOF
       withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID',
         credentialsId: 'AKIA6OOX34YQ5DJLY5GJ', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
         sh """
+          if [[ -f $VENV_PATH/bin/activate ]]; then
+            source $VENV_PATH/bin/activate
+          fi
           cd $WORKSPACE/aether-onramp
           make gnbsim-uninstall
           make 5gc-uninstall
@@ -208,11 +234,10 @@ EOF
         """
       }
     }
-    
+
     // triggered when red sign
     failure {
         slackSend color: "danger", message: "FAILED ${env.JOB_NAME} ${env.BUILD_NUMBER} ${env.BUILD_URL}"
-            
     }
   }
 }
