@@ -102,7 +102,7 @@ EOF
                   source $VENV_PATH/bin/activate
                 fi
                 cd $WORKSPACE/aether-onramp
-                docker exec rfsim5g-srsran-nr-ue ip netns exec ue1 ping -c 5 192.168.250.1 > srs-uesim.log"
+                docker exec rfsim5g-srsran-nr-ue ip netns exec ue1 ping -c 5 192.168.250.1 > srs-uesim.log
                 grep "0% packet loss" srs-uesim.log
               """
           }
