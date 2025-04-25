@@ -64,8 +64,8 @@ EOF
             fi
             cd $WORKSPACE/aether-onramp
             make aether-k8s-install
-            make aether-amp-install
             make aether-5gc-install
+            make aether-amp-install
             make aether-gnbsim-install
             kubectl get pods -n aether-5gc
             docker ps

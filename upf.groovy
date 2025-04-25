@@ -109,10 +109,10 @@ EOF
             fi
             cd $WORKSPACE/aether-onramp
             make k8s-install
+            make 5gc-install
             make roc-install
             sleep 60
             make roc-load
-            make 5gc-install
             sudo sed -i "s/roc-5g-models.json/roc-5g-models-upf2.json/" vars/main.yml
             make 5gc-upf-install
             make roc-load
