@@ -17,6 +17,9 @@ the second VM. All VMs have Ansible installed, as documented in the
 Outcomes can be viewed on Aether's
 [Jenkins server](https://jenkins.aetherproject.org).
 
+The specification for generating the VMs that run Jenkins jobs can be found here:
+https://github.com/opennetworkinglab/aether-packer.
+
 
 
 
